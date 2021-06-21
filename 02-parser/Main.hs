@@ -5,9 +5,11 @@ module Main where
 import GHC
 import GHC.Paths (libdir)
 
+import GHC.Driver.Main
 import GHC.Driver.Session
 import GHC.Utils.Outputable
 import GHC.Driver.Types
+import GHC.Core.TyCon
 import GHC.CoreToStg.Prep
 import GHC.CoreToStg
 import GHC.Stg.Syntax
@@ -33,6 +35,7 @@ main = runGhc (Just libdir) $ do
   env <- getSession
   dflags <- getSessionDynFlags
   setSessionDynFlags $ dflags { hscTarget = HscInterpreted }
+  dflags <- getSessionDynFlags
 
   target <- guessTarget "Example.hs" Nothing
   setTargets [target]
@@ -43,7 +46,13 @@ main = runGhc (Just libdir) $ do
   tmod <- typecheckModule pmod    -- TypecheckedSource
   dmod <- desugarModule tmod      -- DesugaredModule
   let core = coreModule dmod      -- CoreModule
-  let (stg, _) = coreToStg dflags (mg_module core) (mg_binds core)
+
+  (core', _ccs) <- liftIO $ do
+      hsc_env <- newHscEnv dflags
+      let tycons = mg_tcs core
+          data_tycons = filter isDataTyCon tycons
+      corePrepPgm hsc_env (mg_module core) (ms_location modSum) (mg_binds core) data_tycons
+  let (stg, _cccs) = coreToStg dflags (mg_module core) core'
 
   liftIO $ banner "Parsed Source"
   liftIO $ putStrLn $ showGhc ( parsedSource pmod )
@@ -62,6 +71,9 @@ main = runGhc (Just libdir) $ do
 
   liftIO $ banner "Core Module"
   liftIO $ putStrLn $ showGhc ( mg_binds core )
+
+  liftIO $ banner "Core Module (prep'd)"
+  liftIO $ putStrLn $ showGhc core'
 
   liftIO $ banner "STG"
   liftIO $ putStrLn $ showSDocUnsafe $ pprStgTopBindings (initStgPprOpts dflags) stg
