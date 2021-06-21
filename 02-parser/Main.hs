@@ -42,7 +42,7 @@ main = runGhc (Just libdir) $ do
   tmod <- typecheckModule pmod    -- TypecheckedSource
   dmod <- desugarModule tmod      -- DesugaredModule
   let core = coreModule dmod      -- CoreModule
-  stg <- liftIO $ coreToStg dflags (mg_module core) (mg_binds core)
+  let (stg, _) = coreToStg dflags (mg_module core) (mg_binds core)
 
   liftIO $ banner "Parsed Source"
   liftIO $ putStrLn $ showGhc ( parsedSource pmod )
