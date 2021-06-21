@@ -5,16 +5,17 @@ module Main where
 import GHC
 import GHC.Paths (libdir)
 
-import DynFlags
-import Outputable
-import HscTypes
-import CorePrep
-import CoreToStg
+import GHC.Driver.Session
+import GHC.Utils.Outputable
+import GHC.Driver.Types
+import GHC.CoreToStg.Prep
+import GHC.CoreToStg
+import GHC.Stg.Syntax
 
 import Control.Monad.Trans
 
 showGhc :: (Outputable a) => a -> String
-showGhc = showPpr unsafeGlobalDynFlags
+showGhc = showSDocUnsafe . ppr
 
 banner :: MonadIO m => String -> m ()
 banner msg = liftIO $ putStrLn (
@@ -63,4 +64,4 @@ main = runGhc (Just libdir) $ do
   liftIO $ putStrLn $ showGhc ( mg_binds core )
 
   liftIO $ banner "STG"
-  liftIO $ putStrLn $ showGhc stg
+  liftIO $ putStrLn $ showSDocUnsafe $ pprStgTopBindings (initStgPprOpts dflags) stg
